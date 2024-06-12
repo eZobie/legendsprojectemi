@@ -1,19 +1,26 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-//using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.UI;
+
 public class PlayerMovement : MonoBehaviour
 {
-    /// <summary>
-    /// Contains tunable parameters to tweak the player's basic movement.
-    /// </summary>
+    public static PlayerMovement Instance;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
     [System.Serializable]
     public struct Stats
     {
         [Tooltip("Player Health Meter")]
         public float health;
         
+        [Tooltip("Player Max Health")]
+        public float maxHealth;
+
         [Tooltip("How fast the player runs.")]
         public float speed;
 
@@ -25,14 +32,14 @@ public class PlayerMovement : MonoBehaviour
 
         [Tooltip("When the player is allowed to jump or not.")]
         public bool canJump;
+
         public void changeHealth(float change)
         {
-            Debug.Log("Change Health");
             health += change;
+            health = Mathf.Clamp(health, 0, maxHealth);
         }
     }
-    
-    
+
     public Stats playerStats;
     [Tooltip("Health")]
     public Slider healthBar;
@@ -52,24 +59,24 @@ public class PlayerMovement : MonoBehaviour
     private float moveX, moveY;
     private float facing;
     private Rigidbody rb;
-    
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        playerStats.maxHealth = playerStats.health; // Initialize max health
+        UpdateHealthUI(); // Initialize the health bar
     }
 
     private void Update()
     {
         // Update health bar slider value
-        healthBar.value = playerStats.health;
+        healthBar.value = playerStats.health; // health represents the actual health value (0-100)
+
         if (playerStats.canMove == true)
         {
-
-            // maps movement onto WASD keys and arrow keys
             moveX = Input.GetAxis("Horizontal");
-            moveY = Input.GetAxis("Vertical");  
+            moveY = Input.GetAxis("Vertical");
 
-            // creates linecasts that check for the ground layer, allowing the player to jump
             bool hitL = Physics.Linecast(new Vector3(groundCheckL.position.x, transform.position.y + 1, transform.position.z), groundCheckL.position, groundLayer);
             bool hitR = Physics.Linecast(new Vector3(groundCheckR.position.x, transform.position.y + 1, transform.position.z), groundCheckR.position, groundLayer);
             Debug.DrawLine(new Vector3(groundCheckL.position.x, transform.position.y + 1, transform.position.z), groundCheckL.position, Color.red);
@@ -98,20 +105,17 @@ public class PlayerMovement : MonoBehaviour
     {
         if (playerStats.canMove == true)
         {
-            
-            // directional movement is wrapped around which way the camera is facing
             Vector3 movement = ((mainCamera.right * moveX) * playerStats.speed) + ((mainCamera.forward * moveY) * playerStats.speed);
             rb.velocity = new Vector3(movement.x, rb.velocity.y, movement.z);
 
-            // player faces the direction they are moving towards
             if (movement.x != 0 && movement.z != 0)
             {
                 facing = Mathf.Atan2(movement.x, movement.z) * Mathf.Rad2Deg;
             }
-            rb.rotation = Quaternion.Euler(0, facing, 0);  
+            rb.rotation = Quaternion.Euler(0, facing, 0);
         }
     }
-    
+
     private void Jump()
     {
         playerStats.canJump = false;
@@ -119,4 +123,20 @@ public class PlayerMovement : MonoBehaviour
         rb.AddForce(Vector3.up * playerStats.jumpForce);
     }
 
+    public void TakeDamage(float amount)
+    {
+        playerStats.changeHealth(-amount);
+        UpdateHealthUI();
+    }
+
+    public void RestoreHealth(float amount)
+    {
+        playerStats.changeHealth(amount);
+        UpdateHealthUI();
+    }
+
+    private void UpdateHealthUI()
+    {
+        healthBar.value = playerStats.health; // health bar value directly corresponds to player's health
+    }
 }

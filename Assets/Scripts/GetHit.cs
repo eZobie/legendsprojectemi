@@ -18,6 +18,7 @@ public class GetHit : MonoBehaviour
         playerMovementScript = GetComponent<PlayerMovement>();
         rb = GetComponent<Rigidbody>();
     }
+
     private void FixedUpdate()
     {
         // stops the player from running up the slopes and skipping platforms
@@ -27,43 +28,43 @@ public class GetHit : MonoBehaviour
             playerMovementScript.playerStats.canMove = false;
         }
     }
+
     private void OnCollisionStay(Collision other)
     {
-        if (hurt == false)
+        if (!hurt)
         {
-            if (other.gameObject.tag == "Enemy")
+            if (other.gameObject.CompareTag("Enemy"))
             {
                 enemy = other.gameObject.transform;
                 rb.AddForce(enemy.forward * 1000);
                 rb.AddForce(transform.up * 500);
-                TakeDamage();
+                TakeDamage(10); // Remove 10 points from health
             }
-            if (other.gameObject.tag == "Trap")
+            if (other.gameObject.CompareTag("Trap"))
             {
                 rb.AddForce(transform.forward * -1000);
                 rb.AddForce(transform.up * 500);
-                TakeDamage();
+                TakeDamage(10); // Remove 10 points from health
             }
         }
+
         if (other.gameObject.layer == 9)
         {
             slipping = true;
         }
-        if (other.gameObject.layer != 9)
+        else if (slipping)
         {
-            if (slipping == true)
-            {
-                slipping = false;
-                playerMovementScript.playerStats.canMove = true;
-            }
+            slipping = false;
+            playerMovementScript.playerStats.canMove = true;
         }
     }
-    private void TakeDamage()
+
+    private void TakeDamage(float amount)
     {
         hurt = true;
         playerMovementScript.playerStats.canMove = false;
         playerMovementScript.soundManager.PlayHitSound();
-        playerMovementScript.playerStats.changeHealth(-10);
+        playerMovementScript.TakeDamage(amount); // Use the TakeDamage method from PlayerMovement
         StartCoroutine(Recover());
 
         if (playerMovementScript.playerStats.health <= 0)
@@ -71,12 +72,14 @@ public class GetHit : MonoBehaviour
             RestartGame(); // Call the method to restart the game
         }
     }
+
     private IEnumerator Recover()
     {
         yield return new WaitForSeconds(0.75f);
         hurt = false;
         playerMovementScript.playerStats.canMove = true;
     }
+
     private void RestartGame()
     {
         // Restart the game here

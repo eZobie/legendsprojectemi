@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class RefactorEnemy : MonoBehaviour
+public class FleeingEnemy : MonoBehaviour
 {
     public Stats enemyStats;
 
@@ -21,11 +21,8 @@ public class RefactorEnemy : MonoBehaviour
     private GameObject player;
 
     private Patrol patrolBehavior;
-    
+
     public GameObject playerGameObject;
-    
-
-
 
     /// <summary>
     /// Contains tunable parameters to tweak the enemy's movement and behavior.
@@ -49,48 +46,76 @@ public class RefactorEnemy : MonoBehaviour
         [Tooltip("How close the enemy needs to be to explode")]
         public float explodeDist;
 
+        [Tooltip("The health threshold above which the enemy will flee")]
+        public float fleeHealthThreshold;
     }
+
+    private enum EnemyState
+    {
+        Idle,
+        Chasing,
+        Fleeing
+    }
+
+    private EnemyState currentState;
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
         patrolBehavior = GetComponent<Patrol>();
         player = playerGameObject.GetComponent<PlayerMovement>().gameObject;
+        currentState = EnemyState.Idle;
     }
+
     private void Update()
     {
         float playerHealth = player.GetComponent<PlayerMovement>().playerStats.health;
-        
-        if (playerHealth > 100)
+
+        if (playerHealth >= enemyStats.fleeHealthThreshold)
         {
-            Run();
+            currentState = EnemyState.Fleeing;
+        }
+        else if (!enemyStats.idle)
+        {
+            currentState = EnemyState.Chasing;
         }
         else
         {
-            Chase();
+            currentState = EnemyState.Idle;
         }
-       
-        // changes the enemy's behavior: pacing in circles or chasing the player
-        if (enemyStats.idle == true)
+
+        switch (currentState)
         {
-            patrolBehavior.Move(enemyStats.walkSpeed);
+            case EnemyState.Idle:
+                patrolBehavior.Move(enemyStats.walkSpeed);
+                break;
+            case EnemyState.Chasing:
+                Chase();
+                CheckExplode();
+                break;
+            case EnemyState.Fleeing:
+                Flee();
+                break;
         }
-        else if (enemyStats.idle == false)
-        {
-            Chase();
-            CheckExplode();
-        }
+
         CheckSlipping();
     }
-    
-    private void Run()
+
+    private void Flee()
     {
-       
         Vector3 runDirection = transform.position - player.transform.position;
         transform.position = Vector3.MoveTowards(transform.position, transform.position + runDirection, enemyStats.chaseSpeed * Time.deltaTime);
     }
+
+    private void Chase()
+    {
+        sight.position = new Vector3(player.transform.position.x, transform.position.y, player.transform.position.z);
+        transform.LookAt(sight);
+        transform.position = Vector3.MoveTowards(transform.position, player.transform.position, Time.deltaTime * enemyStats.chaseSpeed);
+    }
+
     private void CheckSlipping()
     {
-        // stops enemy from following player up the inaccessible slopes
         if (slipping == true)
         {
             transform.Translate(Vector3.back * 20 * Time.deltaTime, Space.World);
@@ -99,20 +124,11 @@ public class RefactorEnemy : MonoBehaviour
 
     private void CheckExplode()
     {
-        //Explode if we get within the enemyStats.explodeDist
         if (Vector3.Distance(transform.position, player.transform.position) < enemyStats.explodeDist)
         {
             StartCoroutine("Explode");
             enemyStats.idle = true;
         }
-    }
-
-    private void Chase()
-    {
-        //Chase the player
-        sight.position = new Vector3(player.transform.position.x, transform.position.y, player.transform.position.z);
-        transform.LookAt(sight);
-        transform.position = Vector3.MoveTowards(transform.position, player.transform.position, Time.deltaTime * enemyStats.chaseSpeed);
     }
 
     private void OnCollisionEnter(Collision other)
@@ -127,10 +143,8 @@ public class RefactorEnemy : MonoBehaviour
         }
     }
 
-
     private void OnTriggerEnter(Collider other)
     {
-        //start chassing if the player gets close enough
         if (other.gameObject.tag == "Player")
         {
             player = other.gameObject;
@@ -140,11 +154,9 @@ public class RefactorEnemy : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        //stop chassing if the player gets far enough away
         if (other.gameObject.tag == "Player")
         {
             enemyStats.idle = true;
-
         }
     }
 
@@ -156,6 +168,4 @@ public class RefactorEnemy : MonoBehaviour
         yield return new WaitForSeconds(1f);
         Destroy(transform.parent.gameObject);
     }
-
-
 }

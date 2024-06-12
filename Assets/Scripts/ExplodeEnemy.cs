@@ -49,7 +49,7 @@ public class ExplodeEnemy : MonoBehaviour
             //Check to see how close the player is to the enemy
         {
             float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
-            Debug.Log("Distance to player: " + distanceToPlayer);
+           // Debug.Log("Distance to player: " + distanceToPlayer);
 
             if (distanceToPlayer < enemyStats.explodeDist)
                 //Explode if player is within range
